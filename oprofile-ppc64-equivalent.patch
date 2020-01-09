@@ -1,0 +1,140 @@
+commit 4f5a0d9c4419f3b88586d665272eb35f270a0551
+Author: Maynard Johnson <maynardj@us.ibm.com>
+Date:   Tue Dec 17 16:04:33 2013 -0600
+
+    Allow all native events for IBM POWER8 in POWER7 compat mode
+    
+    Certain older Linux distributions will support the new IBM POWER8
+    processor, but only in a limited mode, since much of the new
+    kernel code needed to fully support the POWER8 was not backported
+    to these older distros.  This limited mode is referred to as
+    "POWER7 compat mode" since the kernel can support only the features
+    that were also available on that earlier IBM processor.
+    
+    Changes I originally made to support POWER8 assumed that there
+    would not be full POWER8 performance monitor unit capabilities when
+    in POWER7 compat mode, and thus, the current oprofile code supports
+    only a limited subset of POWER8 events (i.e., events which were also
+    available on the POWER7). However, I've recently been made aware
+    that these older distros actually do have complete backports of the
+    POWER8 perf_events kernel subsystem code, making them fully aware of
+    all POWER8 events. This patch allows operf and ocount to use all
+    of the POWER8 events, regardless of what mode or distribution we
+    are running on.
+    
+    Signed-off-by: Maynard Johnson <maynardj@us.ibm.com>
+
+diff --git a/libop/op_cpu_type.c b/libop/op_cpu_type.c
+index 4bb34b7..cd75ad4 100644
+--- a/libop/op_cpu_type.c
++++ b/libop/op_cpu_type.c
+@@ -290,7 +290,16 @@ static op_cpu _try_ppc64_arch_generic_cpu(void)
+ 			}
+ 		}
+ 		if (!platforms_are_equivalent) {
+-			if (strcmp(platform, "power7") == 0)
++			//  FIXME
++			/* For POWER8 running in POWER7 compat mode (RHEL 6.5 and SLES 11 SP4),
++			 * the kernel will have enough POWER8-specific PMU code so we can utilize
++			 * all of the POWER8 events. In general, this is not necessarily the case
++			 * when running in compat mode.  This code needs to be inspected for every
++			 * new IBM Power processor released, but for now, we'll assume that for the
++			 * next processor model (assuming there will be something like a POWER9?),
++			 * we should use just the architected events when running POWER8 compat mode.
++			 */
++			if (strcmp(platform, "power8") == 0)
+ 				cpu_type = CPU_PPC64_ARCH_V1;
+ 		}
+ 	}
+commit 88ed74bade0096042d643a6d7e68c2cbc4b6e34d
+Author: Maynard Johnson <maynardj@us.ibm.com>
+Date:   Thu Jan 9 15:07:21 2014 -0600
+
+    Fix "Unable to open cpu_type file for reading" for IBM POWER7+
+    
+    Using operf to do profiling on an IBM POWER7+ may result in
+    the following error message:
+    
+    	Unable to open cpu_type file for reading
+    
+    This patch fixes the problem.  There is also a simple workaround of
+    running 'opcontrol --init'.
+    
+    Signed-off-by: Maynard Johnson <maynardj@us.ibm.com>
+
+diff --git a/libop/op_cpu_type.c b/libop/op_cpu_type.c
+index cd75ad4..7d5262c 100644
+--- a/libop/op_cpu_type.c
++++ b/libop/op_cpu_type.c
+@@ -326,6 +326,8 @@ static op_cpu _get_ppc64_cpu_type(void)
+ 	for (i = 0; i < (int)len ; i++)
+ 		cpu_name_lowercase[i] = tolower(cpu_name[i]);
+ 
++	if (strncmp(cpu_name_lowercase, "power7+", 7) == 0)
++		cpu_name_lowercase[6] = '\0';
+ 	cpu_type_str[0] = '\0';
+ 	strcat(cpu_type_str, "ppc64/");
+ 	strncat(cpu_type_str, cpu_name_lowercase, len);
+commit 65176cb1af0fb1f6c7d3ddba4ab5f5f23c5f7c62
+Author: Maynard Johnson <maynardj@us.ibm.com>
+Date:   Tue Jan 21 14:43:02 2014 -0600
+
+    Fix regression in IBM POWER8 running in POWER7 compat mode
+    
+    A commit made on Dec 17, 2013 ("Allow all native events for IBM POWER8
+    in POWER7 compat mode) broke support for POWER8 in POWER7 compat mode.
+    Instead, oprofile attempts to treat it as a normal POWER7 processor,
+    which is not correct.  A user reported the following error when
+    running operf with the default CYCLES event:
+    
+       terminate called after throwing an instance of 'std::runtime_error'
+         what():  libpfm cannot find event code for CYCLES; cannot continue
+       Aborted
+    
+    This patch fixes this problem.
+    
+    Signed-off-by: Maynard Johnson <maynardj@us.ibm.com>
+
+diff --git a/libop/op_cpu_type.c b/libop/op_cpu_type.c
+index a3ad804..2907f36 100644
+--- a/libop/op_cpu_type.c
++++ b/libop/op_cpu_type.c
+@@ -300,7 +300,9 @@ static op_cpu _try_ppc64_arch_generic_cpu(void)
+ 			 * next processor model (assuming there will be something like a POWER9?),
+ 			 * we should use just the architected events when running POWER8 compat mode.
+ 			 */
+-			if (strcmp(platform, "power8") == 0)
++			if ((strcmp(platform, "power7") == 0) && (strcmp(base_platform, "power8") == 0))
++				cpu_type = CPU_PPC64_POWER8;
++			else
+ 				cpu_type = CPU_PPC64_ARCH_V1;
+ 		}
+ 	}
+commit 7243fa4ed8a25c6e59225a863fd263ce70989087
+Author: Maynard Johnson <maynardj@us.ibm.com>
+Date:   Tue Feb 4 08:27:10 2014 -0600
+
+    Make cpu type POWER8E equivalent to POWER8
+    
+    Recent mainline kernel changes resulted in a cpu type of
+    "POWER8E" being displayed in /proc/cpuinfo for certain revisions
+    of the IBM POWER8 processor model. But for profiling and
+    counting of native events, we can ignore the differences between
+    POWER8 and POWER8E.  This patch addresses that issue.
+    
+    Signed-off-by: Maynard Johnson <maynardj@us.ibm.com>
+
+diff --git a/libop/op_cpu_type.c b/libop/op_cpu_type.c
+index 2907f36..1ae2913 100644
+--- a/libop/op_cpu_type.c
++++ b/libop/op_cpu_type.c
+@@ -331,6 +331,9 @@ static op_cpu _get_ppc64_cpu_type(void)
+ 
+ 	if (strncmp(cpu_name_lowercase, "power7+", 7) == 0)
+ 		cpu_name_lowercase[6] = '\0';
++	if (strncmp(cpu_name_lowercase, "power8e", 7) == 0)
++		cpu_name_lowercase[6] = '\0';
++
+ 	cpu_type_str[0] = '\0';
+ 	strcat(cpu_type_str, "ppc64/");
+ 	strncat(cpu_type_str, cpu_name_lowercase, len);

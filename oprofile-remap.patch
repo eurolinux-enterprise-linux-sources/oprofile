@@ -1,0 +1,60 @@
+commit 1c54c9a3d96dd8d9d1d579baaeabc94d0f923ee8
+Author: William Cohen <wcohen@redhat.com>
+Date:   Fri Jul 10 15:41:33 2015 -0400
+
+    Improve handling of remapped anon regions across processes
+    
+    Java runtime environments use dynamically allocated memory in
+    anonymous regions to store Just-In-Time translated code.  The Java
+    runtime system may change the access permissions for portions of mmap
+    regions during execution and operf needs to be tolerant of those
+    change to a portion of the mmap.  operf also needs to keep the anon
+    memory maps distinct between processes to avoid confusion about the
+    sizes of the memory regions.
+    
+    Signed-off-by: William Cohen <wcohen@redhat.com>
+
+diff --git a/libperf_events/operf_process_info.h b/libperf_events/operf_process_info.h
+index f98591f..3138ffb 100644
+--- a/libperf_events/operf_process_info.h
++++ b/libperf_events/operf_process_info.h
+@@ -25,6 +25,7 @@ struct operf_mmap {
+ 	u64 start_addr;
+ 	u64 end_addr;
+ 	u64 pgoff;
++	u32 pid;
+ 	bool is_anon_mapping;
+ 	bool is_hypervisor;
+ 	char filename[PATH_MAX];
+diff --git a/libperf_events/operf_utils.cpp b/libperf_events/operf_utils.cpp
+index 90a0765..ff972d4 100644
+--- a/libperf_events/operf_utils.cpp
++++ b/libperf_events/operf_utils.cpp
+@@ -275,7 +275,10 @@ static void __handle_mmap_event(event_t * event)
+ 	range = all_images_map.equal_range(image_basename);
+ 	for (it = range.first; it != range.second; it++) {
+ 		if (((strcmp((*it).second->filename, image_basename.c_str())) == 0)
+-				&& ((*it).second->start_addr == event->mmap.start)) {
++		    && ((*it).second->pid == 0 || (*it).second->pid == event->mmap.pid)
++		    && ((*it).second->start_addr <= event->mmap.start
++			&& ((*it).second->end_addr >= event->mmap.start + event->mmap.len)))
++		{
+ 			mapping = (*it).second;
+ 			break;
+ 		}
+@@ -291,12 +294,15 @@ static void __handle_mmap_event(event_t * event)
+ 		 */
+ 		if (mapping->filename[0] == '[') {
+ 			mapping->is_anon_mapping = true;
++			mapping->pid = event->mmap.pid;
+ 		} else if ((strncmp(mapping->filename, "//anon",
+ 		                    strlen("//anon")) == 0)) {
+ 			mapping->is_anon_mapping = true;
++			mapping->pid = event->mmap.pid;
+ 			strcpy(mapping->filename, "anon");
+ 		} else if ((strncmp(mapping->filename, "/anon_hugepage",
+ 		                    strlen("/anon_hugepage")) == 0)) {
++			mapping->pid = event->mmap.pid;
+ 			mapping->is_anon_mapping = true;
+ 			strcpy(mapping->filename, "anon");
+ 		}

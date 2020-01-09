@@ -1,0 +1,320 @@
+commit be6d22999668ac976acd2008ec13db4385a0c8dd
+Author: Maynard Johnson <maynardj@us.ibm.com>
+Date:   Mon Jan 27 15:44:18 2014 -0600
+
+    Fix issues detected by Coverity
+    
+    Will Cohen ran Coverity against oprofile and reported some issues
+    on Nov 20, 2013.  I submitted the current oprofile source to the
+    Coverity webpage, and a couple new issues were detected. This
+    patch addresses most of these issues.  Some issues are either
+    false positives from Coverity's analysis or have been marked
+    as "Intentional" so as to have Coverity ignore them.
+    
+    Signed-off-by: Maynard Johnson <maynardj@us.ibm.com>
+
+diff --git a/daemon/init.c b/daemon/init.c
+index 2882c49..1fed812 100644
+--- a/daemon/init.c
++++ b/daemon/init.c
+@@ -154,7 +154,7 @@ static void opd_do_jitdumps(void)
+ 	struct timeval tv;
+ 	char end_time_str[32];
+ 	char opjitconv_path[PATH_MAX + 1];
+-	char * exec_args[7];
++	char * exec_args[8];
+ 
+ 	if (jit_conversion_running)
+ 		return;
+@@ -175,6 +175,7 @@ static void opd_do_jitdumps(void)
+ 			if (vmisc)
+ 				exec_args[arg_num++] = "-d";
+ 			exec_args[arg_num++] = "--delete-jitdumps";
++			exec_args[arg_num++] = "--session-dir";
+ 			exec_args[arg_num++] = session_dir;
+ 			exec_args[arg_num++] = start_time_str;
+ 			exec_args[arg_num++] = end_time_str;
+diff --git a/libpe_utils/op_pe_utils.cpp b/libpe_utils/op_pe_utils.cpp
+index aa0c1c5..0b7482f 100644
+--- a/libpe_utils/op_pe_utils.cpp
++++ b/libpe_utils/op_pe_utils.cpp
+@@ -487,7 +487,7 @@ handle_named_um:
+ 				(endptr <= (mask + strlen(mask) - 2))) { // '- 2' to account for linefeed and '\0'
+ 
+ 			// Must be a default named unit mask
+-			strncpy(event->um_name, mask, OP_MAX_UM_NAME_LEN);
++			strncpy(event->um_name, mask, OP_MAX_UM_NAME_LEN - 1);
+ 			goto handle_named_um;
+ 		}
+ 		config |= ((event->evt_um & 0xFFULL) << 8);
+diff --git a/libutil++/op_bfd.h b/libutil++/op_bfd.h
+index 6ce71fa..1aa7e10 100644
+--- a/libutil++/op_bfd.h
++++ b/libutil++/op_bfd.h
+@@ -334,8 +334,8 @@ private:
+         bfd_vma vma_adj;
+ 
+         /**
+-         * The file descriptor for an image file that we pass to fdopen_bfd must be kep
+-         * open through the life of the op_bfd to enable proper beahvior of certain
++         * The file descriptor for an image file that we pass to fdopen_bfd must be kept
++         * open through the life of the op_bfd to enable proper behavior of certain
+          * BFD functions -- in particular, bfd_find_nearest_line().
+          */
+         int fd;
+diff --git a/libutil++/op_spu_bfd.cpp b/libutil++/op_spu_bfd.cpp
+index 4ac5245..29d6e06 100644
+--- a/libutil++/op_spu_bfd.cpp
++++ b/libutil++/op_spu_bfd.cpp
+@@ -50,7 +50,7 @@ op_bfd::op_bfd(uint64_t spu_offset, string const & fname,
+ 	anon_obj(false),
+ 	vma_adj(0)
+ {
+-	int fd = -1;
++	fd = -1;
+ 	struct stat st;
+ 	int notes_remaining;
+ 	bool spu_note_found = false;
+diff --git a/opjitconv/conversion.c b/opjitconv/conversion.c
+index 111fe9d..add0f95 100644
+--- a/opjitconv/conversion.c
++++ b/opjitconv/conversion.c
+@@ -39,10 +39,10 @@ static void free_jit_debug_line(void)
+ 	jitentry_debug_line_list = NULL;
+ }
+ 
+-int op_jit_convert(struct op_jitdump_info file_info, char const * elffile,
++int op_jit_convert(struct op_jitdump_info * file_info, char const * elffile,
+                    unsigned long long start_time, unsigned long long end_time)
+ {
+-	void const * jitdump = file_info.dmp_file;
++	void const * jitdump = file_info->dmp_file;
+ 	int rc= OP_JIT_CONV_OK;
+ 
+ 	entry_count = 0;
+@@ -53,7 +53,7 @@ int op_jit_convert(struct op_jitdump_info file_info, char const * elffile,
+ 	jitentry_debug_line_list = NULL;
+ 	entries_symbols_ascending = entries_address_ascending = NULL;
+ 
+-	if ((rc = parse_all(jitdump, jitdump + file_info.dmp_file_stat.st_size,
++	if ((rc = parse_all(jitdump, jitdump + file_info->dmp_file_stat.st_size,
+ 	                    end_time)) == OP_JIT_CONV_FAIL)
+ 		goto out;
+ 
+diff --git a/opjitconv/opjitconv.c b/opjitconv/opjitconv.c
+index a9dfa91..9d910be 100644
+--- a/opjitconv/opjitconv.c
++++ b/opjitconv/opjitconv.c
+@@ -19,6 +19,7 @@
+ #include "op_file.h"
+ #include "op_libiberty.h"
+ 
++#include <getopt.h>
+ #include <dirent.h>
+ #include <fnmatch.h>
+ #include <errno.h>
+@@ -75,6 +76,19 @@ int debug;
+ int non_root;
+ /* indicates we should delete jitdump files owned by the user */
+ int delete_jitdumps;
++/* Session directory where sample data is stored */
++char * session_dir;
++
++static struct option long_options [] = {
++                                        { "session-dir", required_argument, NULL, 's'},
++                                        { "debug", no_argument, NULL, 'd'},
++                                        { "delete-jitdumps", no_argument, NULL, 'j'},
++                                        { "non-root", no_argument, NULL, 'n'},
++                                        { "help", no_argument, NULL, 'h'},
++                                        { NULL, 9, NULL, 0}
++};
++const char * short_options = "s:djnh";
++
+ LIST_HEAD(jitdump_deletion_candidates);
+ 
+ /*
+@@ -407,7 +421,7 @@ chk_proc_id:
+ 			goto free_res3;
+ 		}
+ 		/* Convert the dump file as the special user 'oprofile'. */
+-		rc = op_jit_convert(dmp_info, tmp_elffile, start_time, end_time);
++		rc = op_jit_convert(&dmp_info, tmp_elffile, start_time, end_time);
+ 		if (rc < 0)
+ 			goto free_res3;
+ 
+@@ -772,61 +786,99 @@ static void _cleanup_jitdumps(void)
+ 
+ }
+ 
+-int main(int argc, char ** argv)
++static void __print_usage(const char * extra_msg)
++{
++	if (extra_msg)
++		fprintf(stderr, extra_msg);
++	fprintf(stderr, "usage: opjitconv [--debug | --non-root | --delete-jitdumps ] --session-dir=<dir> <starttime> <endtime>\n");
++}
++
++static int _process_args(int argc, char * const argv[])
++{
++	int keep_trying = 1;
++	int idx_of_non_options = 0;
++	setenv("POSIXLY_CORRECT", "1", 0);
++	while (keep_trying) {
++		int option_idx = 0;
++		int c = getopt_long(argc, argv, short_options, long_options, &option_idx);
++		switch (c) {
++		case -1:
++			if (optind != argc) {
++				idx_of_non_options = optind;
++			}
++			keep_trying = 0;
++			break;
++		case '?':
++			printf("non-option detected at optind %d\n", optind);
++			keep_trying = 0;
++			idx_of_non_options = -1;
++			break;
++		case 's':
++			session_dir = optarg;
++			break;
++		case 'd':
++			debug = 1;
++			break;
++		case 'n':
++			non_root = 1;
++			break;
++		case 'j':
++			delete_jitdumps = 1;
++			break;
++		case 'h':
++			break;
++		default:
++			break;
++		}
++	}
++	return idx_of_non_options;
++}
++
++int main(int argc, char * const argv[])
+ {
+ 	unsigned long long start_time, end_time;
+-	char session_dir[PATH_MAX];
+-	int rc = 0;
++	struct stat filestat;
++	int non_options_idx, rc = 0;
+ 	size_t sessdir_len = 0;
+-	char * path_end;
+ 
+ 	debug = 0;
+-	if (argc > 1 && strcmp(argv[1], "-d") == 0) {
+-		debug = 1;
+-		argc--;
+-		argv++;
+-	}
+ 	non_root = 0;
+-	if (argc > 1 && strcmp(argv[1], "--non-root") == 0) {
+-		non_root = 1;
+-		argc--;
+-		argv++;
+-	}
+-
+ 	delete_jitdumps = 0;
+-	if (argc > 1 && strcmp(argv[1], "--delete-jitdumps") == 0) {
+-		delete_jitdumps = 1;
+-		argc--;
+-		argv++;
+-	}
+-
+-	if (argc != 4) {
+-		printf("Usage: opjitconv [-d] <session_dir> <starttime>"
+-		       " <endtime>\n");
++	session_dir = NULL;
++	non_options_idx = _process_args(argc, argv);
++	// We need the session_dir and two non-option values passed -- starttime and endtime.
++	if (!session_dir || (non_options_idx != argc - 2)) {
++		__print_usage(NULL);
+ 		fflush(stdout);
+ 		rc = EXIT_FAILURE;
+ 		goto out;
+ 	}
+ 
+ 	/*
+-	 * Check for a maximum of 4096 bytes (Linux path name length limit) decremented
+-	 * by 16 bytes (will be used later for appending samples sub directory).
++	 * Check for a maximum of 4096 bytes (Linux path name length limit) minus 16 bytes
++	 * (to be used later for appending samples sub directory) minus 1 (for terminator).
+ 	 * Integer overflows according to the session dir parameter (user controlled)
+ 	 * are not possible anymore.
+ 	 */
+-	path_end = memchr(argv[1], '\0', PATH_MAX);
+-	if (!path_end || ((sessdir_len = (path_end - argv[1])) >= PATH_MAX - 16)) {
++	if ((sessdir_len = strlen(session_dir)) >= (PATH_MAX - 17)) {
+ 		printf("opjitconv: Path name length limit exceeded for session directory\n");
+ 		rc = EXIT_FAILURE;
+ 		goto out;
+ 	}
+-	memset(session_dir, '\0', PATH_MAX);
+-	assert(sessdir_len < (PATH_MAX - 16 - 1));
+-	strncpy(session_dir, argv[1], sessdir_len);
+-	session_dir[PATH_MAX -1] = '\0';
+ 
+-	start_time = atol(argv[2]);
+-	end_time = atol(argv[3]);
++	if (stat(session_dir, &filestat)) {
++		perror("stat operation on passed session-dir failed");
++		rc = EXIT_FAILURE;
++		goto out;
++	}
++	if (!S_ISDIR(filestat.st_mode)) {
++		printf("Passed session-dir %s is not a directory\n", session_dir);
++		rc = EXIT_FAILURE;
++		goto out;
++	}
++
++	start_time = atol(argv[non_options_idx++]);
++	end_time = atol(argv[non_options_idx]);
+ 
+ 	if (start_time > end_time) {
+ 		rc = EXIT_FAILURE;
+diff --git a/opjitconv/opjitconv.h b/opjitconv/opjitconv.h
+index f6243c9..a3ce37f 100644
+--- a/opjitconv/opjitconv.h
++++ b/opjitconv/opjitconv.h
+@@ -99,7 +99,7 @@ int parse_all(void const * start, void const * end,
+ 	      unsigned long long end_time);
+ 
+ /* conversion.c */
+-int op_jit_convert(struct op_jitdump_info file_info, char const * elffile,
++int op_jit_convert(struct op_jitdump_info *file_info, char const * elffile,
+                    unsigned long long start_time, unsigned long long end_time);
+ 
+ /* create_bfd.c */
+diff --git a/pe_profiling/operf.cpp b/pe_profiling/operf.cpp
+index 88aed3d..399308f 100644
+--- a/pe_profiling/operf.cpp
++++ b/pe_profiling/operf.cpp
+@@ -787,7 +787,7 @@ static void _do_jitdump_convert()
+ 	struct timeval tv;
+ 	char end_time_str[32];
+ 	char opjitconv_path[PATH_MAX + 1];
+-	char * exec_args[8];
++	char * exec_args[9];
+ 
+ 	jitconv_pid = fork();
+ 	switch (jitconv_pid) {
+@@ -799,6 +799,7 @@ static void _do_jitdump_convert()
+ 		const char * debug_option = "-d";
+ 		const char * non_root_user = "--non-root";
+ 		const char * delete_jitdumps = "--delete-jitdumps";
++		const char * sess_dir =  "--session-dir";
+ 		gettimeofday(&tv, NULL);
+ 		end_time = tv.tv_sec;
+ 		sprintf(end_time_str, "%llu", end_time);
+@@ -810,6 +811,7 @@ static void _do_jitdump_convert()
+ 		if (my_uid != 0)
+ 			exec_args[arg_num++] = (char *)non_root_user;
+ 		exec_args[arg_num++] = (char *)delete_jitdumps;
++		exec_args[arg_num++] = (char *)sess_dir;
+ 		exec_args[arg_num++] = (char *)operf_options::session_dir.c_str();
+ 		exec_args[arg_num++] = start_time_str;
+ 		exec_args[arg_num++] = end_time_str;

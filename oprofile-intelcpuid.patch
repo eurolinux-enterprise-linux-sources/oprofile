@@ -1,0 +1,27 @@
+commit a154a6ba3477c9cb51e2c225e6434909bb41a60a
+Author: Andi Kleen <ak@linux.intel.com>
+Date:   Thu Jun 11 13:54:59 2015 -0700
+
+    oprofile: Add Intel Airmont and Intel Xeon D model numbers
+    
+    Add a model number for Airmont/Braswell CPUs
+    Add a model number for Broadwell based Xeon D CPUs.
+    
+    Signed-off-by: Andi Kleen <ak@linux.intel.com>
+
+diff --git a/libop/op_hw_specific.h b/libop/op_hw_specific.h
+index 1d39692..8a7ed1c 100644
+--- a/libop/op_hw_specific.h
++++ b/libop/op_hw_specific.h
+@@ -152,9 +152,11 @@ static inline op_cpu op_cpu_specific_type(op_cpu cpu_type)
+ 		case 0x3d:
+ 		case 0x47:
+ 		case 0x4f:
++		case 0x56:
+ 			return CPU_BROADWELL;
+ 		case 0x37:
+ 		case 0x4d:
++		case 0x4c:
+ 			return CPU_SILVERMONT;
+ 		}
+ 	}

@@ -1,0 +1,134 @@
+commit 5646afee4c74a6759fc61d11b9203b0f6d60f529
+Author: Maynard Johnson <maynardj@us.ibm.com>
+Date:   Thu May 29 10:10:41 2014 -0500
+
+    opreport XML: binary-level count field issues
+    
+    See oprofile bug # 236 (https://sourceforge.net/p/oprofile/bugs/236/).
+    
+    There are several issues relating to the use of the 'count' element
+    defined in opreport.xsd. For example, below is the current schema
+    definition for the 'binary' element.  Note the usage of the 'count'
+    element:
+    
+    <xs:element name="binary">
+    <xs:complexType>
+    <xs:sequence>
+    <xs:element minOccurs="1" maxOccurs="1" ref="count"/>
+    <xs:element minOccurs="0" maxOccurs="unbounded" ref="symbol"/>
+    <!-- When the separate=lib option is used an binary
+    can contain a list of library Modules. -->
+    <xs:element minOccurs="0" maxOccurs="unbounded" ref="module"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+    </xs:element>
+    
+    There have been questions from users whether the 'count' element
+    associated with the 'binary' element is supposed to represent a
+    total count across all modules for the executable or if it is only
+    the count for the executable itself (the answer is the latter).
+    
+    Additionally, it's possible that there may be no samples at all
+    for the binary file -- i.e., all samples collected were for module
+    elements -- thus, the minOccurs attribute for the 'count' element
+    of 'binary' should be '0'.
+    
+    Finally, using xmllint on a XML instance document created from
+    opreport on a profile run that specified "--separate-cpu" identified
+    that the instance document was invalid when compared against its
+    associated schema file (opreport.xsd). Reviewing the schema, I
+    realized that all usages of the 'count' element were wrong insofar
+    as the maxOccurs attribute. Instead of being set to '1', maxOccurs
+    should be 'unbounded' since we can have multiple 'count' elements
+    associated with any given higher level element (e.g., 'binary')
+    if there are multiple classes in the profile.  Multiple classes
+    will exist for a profile for various reasons -- e.g., profiling with
+    '--separate-cpu', or multiple events.
+    
+    This patch addresses these issues. The major version number of the
+    schema is not being changed -- only the minor number.  This is because
+    instance documents that previously validated using the old schema
+    will still be valid with the new schema.
+    
+    A testsuite patch is being developed to validate XML instance documents
+    for various scenarios.
+    
+    Signed-off-by: Maynard Johnson <maynardj@us.ibm.com>
+
+diff --git a/doc/opreport.xsd b/doc/opreport.xsd
+index 682a0bf..28e3128 100644
+--- a/doc/opreport.xsd
++++ b/doc/opreport.xsd
+@@ -110,7 +110,7 @@
+   <xs:element name="process">
+     <xs:complexType>
+       <xs:sequence>
+-	<xs:element minOccurs="1" maxOccurs="1" ref="count"/>
++        <xs:element minOccurs="1" maxOccurs="unbounded" ref="count"/>
+         <xs:element minOccurs="1" maxOccurs="unbounded" ref="thread"/>
+       </xs:sequence>
+       <xs:attribute name="pid" type="xs:integer" use="required"/>
+@@ -121,7 +121,7 @@
+   <xs:element name="thread">
+     <xs:complexType>
+       <xs:sequence>
+-		<xs:element minOccurs="1" maxOccurs="1" ref="count"/>
++        <xs:element minOccurs="1" maxOccurs="unbounded" ref="count"/>
+         <xs:element minOccurs="1" maxOccurs="unbounded" ref="module"/>
+       </xs:sequence>
+       <xs:attribute name="tid" type="xs:integer" use="required"/>
+@@ -131,10 +131,13 @@
+   <xs:element name="binary">
+     <xs:complexType>
+       <xs:sequence>
+-		<xs:element minOccurs="1" maxOccurs="1" ref="count"/>
++        <xs:element minOccurs="0" maxOccurs="unbounded" ref="count"/>
++        <!-- A binary element implicitly includes the binary file
++             as a module.  The count value here is the number of samples
++             just for the binary file module, which may be zero.  -->
+         <xs:element minOccurs="0" maxOccurs="unbounded" ref="symbol"/>
+-        <!-- When the separate=lib option is used an binary
+-		     can contain a list of library Modules.  -->
++        <!-- When using operf or the separate=lib option of opcontrol, a binary
++             can contain a list of library Modules.  -->
+         <xs:element minOccurs="0" maxOccurs="unbounded" ref="module"/>
+       </xs:sequence>
+       <xs:attribute name="name" type="xs:string" use="required"/>
+@@ -144,7 +147,7 @@
+   <xs:element name="module">
+     <xs:complexType>
+       <xs:sequence>
+-		<xs:element minOccurs="0" maxOccurs="1" ref="count"/>
++        <xs:element minOccurs="0" maxOccurs="unbounded" ref="count"/>
+         <xs:element minOccurs="1" maxOccurs="unbounded" ref="symbol"/>
+       </xs:sequence>
+       <xs:attribute name="name" type="xs:string" use="required"/>
+@@ -203,7 +206,7 @@
+       <xs:sequence>
+         <xs:element minOccurs="0" maxOccurs="1" ref="callers"/>
+         <xs:element minOccurs="0" maxOccurs="1" ref="callees"/>
+-        <xs:element minOccurs="0" maxOccurs="1" ref="count"/>
++        <xs:element minOccurs="0" maxOccurs="unbounded" ref="count"/>
+       </xs:sequence>
+ 	  <!-- idref is an index into symboltable table-->
+       <xs:attribute name="idref" type="xs:nonNegativeInteger" use="required"/>
+diff --git a/libpp/xml_utils.cpp b/libpp/xml_utils.cpp
+index 942b236..5f1a3a1 100644
+--- a/libpp/xml_utils.cpp
++++ b/libpp/xml_utils.cpp
+@@ -245,11 +245,11 @@ void xml_utils::add_option(tag_t tag, bool value)
+ void xml_utils::output_xml_header(string const & command_options,
+                        string const & cpu_info, string const & events)
+ {
+-	// the integer portion indicates the schema version and should change
++	// The integer portion indicates the schema version and should change
+ 	// both here and in the schema file when major changes are made to
+-	// the schema.  changes to opreport, or minor changes to the schema
++	// the schema.  Changes to opreport, or minor changes to the schema
+ 	// can be indicated by changes to the fraction part.
+-	string const schema_version = "3.0";
++	string const schema_version = "3.1";
+ 
+ 	// This is the XML version, not schema version.
+ 	string const xml_header = "<?xml version=\"1.0\" ?>";

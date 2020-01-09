@@ -1,0 +1,63 @@
+commit a41b4231ccfc83fb99271507a8e98f84a348e71d
+Author: Rei Odaira <rei.odaira@gmail.com>
+Date:   Fri May 22 15:34:50 2015 -0400
+
+    Filter out zero-sized mapping to avoid opjitconv running indefinitely
+    
+    I found opjitconv ran indefinitely when profiling a Java application
+    running on OpenJDK/ppc64le.  This is because OpenJDK sometimes reports
+    generation of zero-size jitted code via JVMTI, but scan_overlaps() in
+    opjitconv does not assume the existence of jitted code with size zero.
+    
+    (1) scan_overlaps() finds overlap between a normal jitted code and a
+        zero-size jitted code.
+    (2) eliminate_overlaps() tries to split the zero-size jitted code but
+         cannot.
+    (3) resolve_overlaps() incorrectly thinks the split has happened and
+         invokes scan_overlaps() again.
+    (4) Back to (1)
+    
+    One solution is to remove all the zero-size entries before resolving
+    overlaps which is implemented by this patch.
+    
+    Signed-off-by: William Cohen <wcohen@redhat.com>
+
+diff --git a/opjitconv/jitsymbol.c b/opjitconv/jitsymbol.c
+index e2b1e66..1b980af 100644
+--- a/opjitconv/jitsymbol.c
++++ b/opjitconv/jitsymbol.c
+@@ -201,6 +201,26 @@ static void invalidate_earlybirds(unsigned long long start_time)
+ 	}
+ }
+ 
++static void invalidate_zero_size_entries(void)
++{
++	u32 i;
++	int flag;
++	struct jitentry * a;
++
++	flag = 0;
++	for (i = 0; i < entry_count; i++) {
++		a = entries_address_ascending[i];
++		if (a->code_size == 0) {
++			invalidate_entry(a);
++			flag = 1;
++		}
++	}
++	if (flag) {
++		resort_address();
++		resort_symbol();
++	}
++}
++
+ 
+ /* select the symbol with the longest life time in the index range */
+ static int select_one(int start_idx, int end_idx)
+@@ -505,6 +525,7 @@ int resolve_overlaps(unsigned long long start_time)
+ 	int cnt = 0;
+ 
+ 	invalidate_earlybirds(start_time);
++	invalidate_zero_size_entries();
+ 	while ((rc = scan_overlaps()) && rc != OP_JIT_CONV_FAIL) {
+ 		resort_address();
+ 		if (cnt == 0) {
