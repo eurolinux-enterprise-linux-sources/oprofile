@@ -1,7 +1,7 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 6%{?dist}
+Release: 11%{?dist}
 License: GPLv2
 Group: Development/System
 #
@@ -22,6 +22,11 @@ Patch401: oprofile-silvermont.patch
 Patch402: oprofile-broadwell.patch
 Patch500: oprofile-aarch64.patch
 Patch600: oprofile-power8.patch
+Patch700: oprofile-hugepage.patch
+Patch800: oprofile-defaultmask.patch
+Patch801: oprofile-extramask.patch
+Patch802: oprofile-maskarray.patch
+Patch803: oprofile-env.patch
 
 URL: http://oprofile.sf.net
 
@@ -103,6 +108,11 @@ agent library.
 %patch402 -p1 -b .broadwell
 %patch500 -p1 -b .aarch64
 %patch600 -p1 -b .power8
+%patch700 -p1
+%patch800 -p1
+%patch801 -p1
+%patch802 -p1
+%patch803 -p1
 
 ./autogen.sh
 
@@ -235,6 +245,18 @@ exit 0
 /etc/ld.so.conf.d/*
 
 %changelog
+* Thu Mar 26 2015 William Cohen <wcohen@redhat.com> - 0.9.9-11
+- Avoid setting POSIXLY_CORRECT for the children tasks of operf and ocount.
+
+* Wed Mar 11 2015 Will Cohen <wcohen@redhat.com> - 0.9.9-10
+- Fix handling of default unit masks longer than 11 char.
+
+* Tue Mar 10 2015 Will Cohen <wcohen@redhat.com> - 0.9.9-9
+- Fix extra and default unitmasks selection.
+
+* Thu Feb 26 2015 Will Cohen <wcohen@redhat.com> - 0.9.9-7
+- Allow operf to record information for Java anon_huges.
+
 * Tue Oct 28 2014 William Cohen <wcohen@redhat.com> - 0.9.9-6
 - Update support for Intel Silvermont (Avoton). rhbz1144235
 
