@@ -1,7 +1,7 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 5%{?dist}
+Release: 6%{?dist}
 License: GPLv2
 Group: Development/System
 #
@@ -235,6 +235,9 @@ exit 0
 /etc/ld.so.conf.d/*
 
 %changelog
+* Tue Oct 28 2014 William Cohen <wcohen@redhat.com> - 0.9.9-6
+- Update support for Intel Silvermont (Avoton). rhbz1144235
+
 * Mon Aug 18 2014 Daniel Mach <dmach@redhat.com> - 0.9.9-5
 - Update Intel Haswell events.
 - Add support for Intel Silvermont (Avoton).
