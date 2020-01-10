@@ -1,11 +1,11 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 13%{?dist}
+Release: 21%{?dist}
 License: GPLv2
 Group: Development/System
 #
-Source0: oprofile-%{version}.tar.gz
+Source0: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
 #FIXME a workaround until java-1.6.0-openjdk-devel is available on all archs
 Source1: openjdk-include.tar.gz
 Requires: binutils
@@ -20,6 +20,7 @@ Patch305: oprofile-rhbz1121205.patch
 Patch400: oprofile-haswell.patch
 Patch401: oprofile-silvermont.patch
 Patch402: oprofile-broadwell.patch
+Patch403: oprofile-intelcpuid.patch
 Patch500: oprofile-aarch64.patch
 Patch600: oprofile-power8.patch
 Patch700: oprofile-hugepage.patch
@@ -27,9 +28,15 @@ Patch800: oprofile-defaultmask.patch
 Patch801: oprofile-extramask.patch
 Patch802: oprofile-maskarray.patch
 Patch803: oprofile-env.patch
-Patch900: oprofile-airmont.patch
-Patch901: oprofile-skylake.patch
-Patch910: oprofile-coverity.patch
+Patch804: oprofile-coverity.patch
+Patch1000: oprofile-skylake.patch
+Patch1001: oprofile-remap.patch
+Patch1002: oprofile-xml2.patch
+Patch1003: oprofile-goldmont.patch
+Patch1004: oprofile-bz1335145.patch
+Patch1005: oprofile-bz1264443.patch
+Patch1006: oprofile-captest.patch
+Patch1007: oprofile-order.patch
 
 URL: http://oprofile.sf.net
 
@@ -68,7 +75,7 @@ the RTC for profiling on other x86 processor types.
 See the HTML documentation for further details.
 
 %package devel
-Summary: Header files and libraries for developing apps which will use oprofile.
+Summary: Header files and libraries for developing apps which will use oprofile
 Group: Development/Libraries
 Requires: oprofile = %{version}-%{release}
 
@@ -77,7 +84,7 @@ Requires: oprofile = %{version}-%{release}
 Header files and libraries for developing apps which will use oprofile.
 
 %package gui
-Summary: GUI for oprofile.
+Summary: GUI for oprofile
 Group: Development/System
 Requires: oprofile = %{version}-%{release}
 
@@ -110,6 +117,7 @@ agent library.
 %patch400 -p1 -b .haswell
 %patch401 -p1 -b .silvermont
 %patch402 -p1 -b .broadwell
+%patch403 -p1
 %patch500 -p1 -b .aarch64
 %patch600 -p1 -b .power8
 %patch700 -p1
@@ -117,9 +125,15 @@ agent library.
 %patch801 -p1
 %patch802 -p1
 %patch803 -p1
-%patch900 -p1
-%patch901 -p1
-%patch910 -p1
+%patch804 -p1
+%patch1000 -p1
+%patch1001 -p1
+%patch1002 -p1
+%patch1003 -p1
+%patch1004 -p1
+%patch1005 -p1 -b .archive
+%patch1006 -p1 -b .captest
+%patch1007 -p1 -b .order
 
 ./autogen.sh
 
@@ -176,23 +190,23 @@ mv $RPM_BUILD_ROOT%{_datadir}/doc/oprofile/* docs.installed/
 
 #hack to make header files available
 mkdir -p ${RPM_BUILD_ROOT}%{_includedir}
-install -m 755 libop/op_events.h $RPM_BUILD_ROOT/%{_includedir}
-install -m 755 libop/op_cpu_type.h $RPM_BUILD_ROOT/%{_includedir}
-#install -m 755 libop/op_events_desc.h $RPM_BUILD_ROOT/%{_includedir}
-install -m 755 libop/op_config.h $RPM_BUILD_ROOT/%{_includedir}
-install -m 755 libop/op_sample_file.h $RPM_BUILD_ROOT/%{_includedir}
-install -m 755 libutil/op_types.h $RPM_BUILD_ROOT/%{_includedir}
-install -m 755 libutil/op_list.h $RPM_BUILD_ROOT/%{_includedir}
-install -m 755 libdb/odb.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libop/op_events.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libop/op_cpu_type.h $RPM_BUILD_ROOT/%{_includedir}
+#install -m 644 libop/op_events_desc.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libop/op_config.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libop/op_sample_file.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libutil/op_types.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libutil/op_list.h $RPM_BUILD_ROOT/%{_includedir}
+install -m 644 libdb/odb.h $RPM_BUILD_ROOT/%{_includedir}
 
 #hack to make .a files available
 mkdir -p ${RPM_BUILD_ROOT}%{_libdir}
-install -m 755 libop/libop.a $RPM_BUILD_ROOT/%{_libdir}
-install -m 755 libdb/libodb.a $RPM_BUILD_ROOT/%{_libdir}
-install -m 755 libutil/liboputil.a $RPM_BUILD_ROOT/%{_libdir}
-install -m 755 libutil++/liboputil++.a $RPM_BUILD_ROOT/%{_libdir}
-#install -m 755 pp/liboppp.a $RPM_BUILD_ROOT/%{_libdir}
-install -m 755 libabi/libopabi.a $RPM_BUILD_ROOT/%{_libdir}
+install -m 644 libop/libop.a $RPM_BUILD_ROOT/%{_libdir}
+install -m 644 libdb/libodb.a $RPM_BUILD_ROOT/%{_libdir}
+install -m 644 libutil/liboputil.a $RPM_BUILD_ROOT/%{_libdir}
+install -m 644 libutil++/liboputil++.a $RPM_BUILD_ROOT/%{_libdir}
+#install -m 644 pp/liboppp.a $RPM_BUILD_ROOT/%{_libdir}
+install -m 644 libabi/libopabi.a $RPM_BUILD_ROOT/%{_libdir}
 
 mkdir -p %{buildroot}/etc/ld.so.conf.d
 echo "%{_libdir}/oprofile" > %{buildroot}/etc/ld.so.conf.d/oprofile-%{_arch}.conf
@@ -252,6 +266,9 @@ exit 0
 /etc/ld.so.conf.d/*
 
 %changelog
+* Tue Nov 1 2016 William Cohen <wcohen@redhat.com> - 0.9.9-21
+- Correct and update events and unit masks for Intel processors.
+
 * Thu Feb 4 2016 William Cohen <wcohen@redhat.com> - 0.9.9-13
 - Build with correct libpfm.
 

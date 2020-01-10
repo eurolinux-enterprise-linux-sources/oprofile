@@ -1,15 +1,26 @@
-commit 917dfab881becfad104ad02682a88afb54284932
-Author: Andi Kleen <ak@linux.intel.com>
-Date:   Wed Jul 1 14:36:42 2015 -0700
+From 917dfab881becfad104ad02682a88afb54284932 Mon Sep 17 00:00:00 2001
+From: Andi Kleen <ak@linux.intel.com>
+Date: Wed, 1 Jul 2015 14:36:42 -0700
+Subject: [PATCH 1/3] Add support for Intel Skylake events
 
-    Add support for Intel Skylake events
-    
-    Add support for the Intel Skylake micro architecture to oprofile.
-    
-    OFFCORE_* and FRONTEND_* events are not supported for now because
-    oprofile does not support setting up config1
-    
-    Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Add support for the Intel Skylake micro architecture to oprofile.
+
+OFFCORE_* and FRONTEND_* events are not supported for now because
+oprofile does not support setting up config1
+
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ events/Makefile.am             |   1 +
+ events/i386/skylake/events     |  62 ++++++++
+ events/i386/skylake/unit_masks | 314 +++++++++++++++++++++++++++++++++++++++++
+ libop/op_cpu_type.c            |   2 +
+ libop/op_cpu_type.h            |   1 +
+ libop/op_events.c              |   1 +
+ libop/op_hw_specific.h         |   3 +
+ utils/ophelp.c                 |   1 +
+ 8 files changed, 385 insertions(+)
+ create mode 100644 events/i386/skylake/events
+ create mode 100644 events/i386/skylake/unit_masks
 
 diff --git a/events/Makefile.am b/events/Makefile.am
 index d68f0e8..56f9020 100644
@@ -481,19 +492,25 @@ index a80fec8..fdddddc 100644
  	case CPU_SILVERMONT:
  	case CPU_WESTMERE:
  	case CPU_SANDYBRIDGE:
+-- 
+2.4.3
 
-commit ccc38adf33e3ae845e0b7c4f8fe77beceaa7b930
-Author: Andi Kleen <ak@linux.intel.com>
-Date:   Mon Jul 6 16:48:25 2015 -0700
+From ccc38adf33e3ae845e0b7c4f8fe77beceaa7b930 Mon Sep 17 00:00:00 2001
+From: Andi Kleen <ak@linux.intel.com>
+Date: Mon, 6 Jul 2015 16:48:25 -0700
+Subject: [PATCH 2/3] oprofile: Fixes for Skylake event lists
 
-    oprofile: Fixes for Skylake event lists
-    
-    This fixes the review feedback for the Skylake event list.
-    
-    - Fix event codes for INST_RETIRED, CPU_CLK_UNHALTED.
-    - Fix OFFCORE_REQUESTS_OUTSTANDING events
-    - Add br_inst_retired.all_branches_pebs
-    - Fill in correct default event
+This fixes the review feedback for the Skylake event list.
+
+- Fix event codes for INST_RETIRED, CPU_CLK_UNHALTED.
+- Fix OFFCORE_REQUESTS_OUTSTANDING events
+- Add br_inst_retired.all_branches_pebs
+- Fill in correct default event
+---
+ events/i386/skylake/events     |  4 ++--
+ events/i386/skylake/unit_masks | 25 +++++++++++++------------
+ libop/op_events.c              |  5 ++++-
+ 3 files changed, 19 insertions(+), 15 deletions(-)
 
 diff --git a/events/i386/skylake/events b/events/i386/skylake/events
 index 28d6654..9a04a86 100644
@@ -611,19 +628,23 @@ index f58d243..25f010e 100644
  		case CPU_RTC:
  			descr->name = "RTC_INTERRUPTS";
  			descr->count = 1024;
+-- 
+2.4.3
 
-commit cfb3ddbaae4ca2e073b5229bf6019da766eb8da9
-Author: Andi Kleen <ak@linux.intel.com>
-Date:   Tue Jul 7 11:02:38 2015 -0700
+From cfb3ddbaae4ca2e073b5229bf6019da766eb8da9 Mon Sep 17 00:00:00 2001
+From: Andi Kleen <ak@linux.intel.com>
+Date: Tue, 7 Jul 2015 11:02:38 -0700
+Subject: [PATCH 3/3] oprofile: Fix unit masks of fixed counters on Skylake
 
-    oprofile: Fix unit masks of fixed counters on Skylake
-    
-    Fix another issue noticed by William Cohen.
-    
-    The unit masks for the fixed counters were incorrect.
-    
-    Note that the fixed counters exist in two copies, as perf aliases
-    them to the generic counter version codes.
+Fix another issue noticed by William Cohen.
+
+The unit masks for the fixed counters were incorrect.
+
+Note that the fixed counters exist in two copies, as perf aliases
+them to the generic counter version codes.
+---
+ events/i386/skylake/unit_masks | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/events/i386/skylake/unit_masks b/events/i386/skylake/unit_masks
 index b505769..6e81a63 100644
@@ -649,3 +670,51 @@ index b505769..6e81a63 100644
  	0x0 extra: any_p Number of instructions retired. General Counter   - architectural event
  	0x1 extra:pebs prec_dist Precise instruction retired event with HW to reduce effect of PEBS shadow in IP distribution
  name:uops_retired type:exclusive default:retire_slots
+-- 
+2.4.3
+
+commit 635d1f59ff198a43deb9482cdec10795222e506a
+Author: Andi Kleen <ak@linux.intel.com>
+Date:   Fri Apr 15 13:14:51 2016 -0700
+
+    Add model number of Skylake server to oprofile
+    
+    Just reuse the event list of Skylake client.
+    
+    Signed-off-by: Andi Kleen <ak@linux.intel.com>
+
+diff --git a/libop/op_hw_specific.h b/libop/op_hw_specific.h
+index 994fec4..a6180f4 100644
+--- a/libop/op_hw_specific.h
++++ b/libop/op_hw_specific.h
+@@ -156,6 +156,7 @@ static inline op_cpu op_cpu_specific_type(op_cpu cpu_type)
+ 			return CPU_BROADWELL;
+ 		case 0x4e:
+ 		case 0x5e:
++		case 0x55:
+ 			return CPU_SKYLAKE;
+ 		case 0x37:
+ 		case 0x4d:
+commit 402cad1b6f5605ed854eb8b7b7376cafce3fb007
+Author: Andi Kleen <ak@linux.intel.com>
+Date:   Fri Apr 29 17:50:25 2016 -0700
+
+    oprofile: Add model numbers for Kabylake CPUs
+    
+    The PMU is using the same events as Skylake, so no other changes.
+    
+    Signed-off-by: Andi Kleen <ak@linux.intel.com>
+
+diff --git a/libop/op_hw_specific.h b/libop/op_hw_specific.h
+index f4db8f5..2061760 100644
+--- a/libop/op_hw_specific.h
++++ b/libop/op_hw_specific.h
+@@ -157,6 +157,8 @@ static inline op_cpu op_cpu_specific_type(op_cpu cpu_type)
+ 		case 0x4e:
+ 		case 0x5e:
+ 		case 0x55:
++		case 0x8e:
++		case 0x9e:
+ 			return CPU_SKYLAKE;
+ 		case 0x37:
+ 		case 0x4d:
