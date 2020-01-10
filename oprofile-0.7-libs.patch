@@ -1,0 +1,164 @@
+diff -up oprofile-0.9.9/daemon/Makefile.am.libs oprofile-0.9.9/daemon/Makefile.am
+--- oprofile-0.9.9/daemon/Makefile.am.libs	2013-07-29 11:55:07.000000000 -0400
++++ oprofile-0.9.9/daemon/Makefile.am	2014-05-12 12:09:56.661301154 -0400
+@@ -49,9 +49,9 @@ AM_LDFLAGS = @OP_LDFLAGS@
+ bin_PROGRAMS = oprofiled
+ 
+ oprofiled_LDADD = \
+-	../libabi/libabi.a \
++	../libabi/libopabi.a \
+ 	../libdb/libodb.a \
+ 	../libop/libop.a \
+-	../libutil/libutil.a
++	../libutil/liboputil.a
+ 
+ oprofiled_LINK = $(CC) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+diff -up oprofile-0.9.9/gui/Makefile.am.libs oprofile-0.9.9/gui/Makefile.am
+--- oprofile-0.9.9/gui/Makefile.am.libs	2013-07-29 11:55:07.000000000 -0400
++++ oprofile-0.9.9/gui/Makefile.am	2014-05-12 12:09:56.661301154 -0400
+@@ -27,9 +27,9 @@ bin_PROGRAMS = oprof_start
+ oprof_start_SOURCES = $(dist_sources)
+ nodist_oprof_start_SOURCES = oprof_start.moc.cpp
+ oprof_start_LDADD = \
+-	../libutil++/libutil++.a \
++	../libutil++/liboputil++.a \
+ 	../libop/libop.a \
+-	../libutil/libutil.a \
++	../libutil/liboputil.a \
+ 	ui/liboprof_start.a \
+ 	@QT_LIBS@ \
+ 	@X_LIBS@
+diff -up oprofile-0.9.9/libabi/Makefile.am.libs oprofile-0.9.9/libabi/Makefile.am
+--- oprofile-0.9.9/libabi/Makefile.am.libs	2013-07-29 11:55:05.000000000 -0400
++++ oprofile-0.9.9/libabi/Makefile.am	2014-05-12 12:09:56.662301142 -0400
+@@ -11,15 +11,15 @@ AM_CPPFLAGS = \
+ 
+ AM_CXXFLAGS = @OP_CXXFLAGS@
+ AM_LDFLAGS = @OP_LDFLAGS@
+-noinst_LIBRARIES = libabi.a
+-libabi_a_SOURCES = abi.cpp abi.h op_abi.c op_abi.h
++noinst_LIBRARIES = libopabi.a
++libopabi_a_SOURCES = abi.cpp abi.h op_abi.c op_abi.h
+ 
+ bin_PROGRAMS = opimport
+ 
+ opimport_SOURCES = opimport.cpp
+ opimport_LDADD = \
+-	libabi.a \
++	libopabi.a \
+ 	../libdb/libodb.a \
+ 	../libopt++/libopt++.a \
+-	../libutil++/libutil++.a \
+-	../libutil/libutil.a
++	../libutil++/liboputil++.a \
++	../libutil/liboputil.a
+diff -up oprofile-0.9.9/libabi/tests/Makefile.am.libs oprofile-0.9.9/libabi/tests/Makefile.am
+--- oprofile-0.9.9/libabi/tests/Makefile.am.libs	2013-07-29 11:55:05.000000000 -0400
++++ oprofile-0.9.9/libabi/tests/Makefile.am	2014-05-12 12:09:56.662301142 -0400
+@@ -14,9 +14,9 @@ check_PROGRAMS = abi_test
+ 
+ abi_test_SOURCES = abi_test.cpp
+ abi_test_LDADD = \
+-	../libabi.a \
++	../libopabi.a \
+ 	../../libop/libop.a \
+ 	../../libdb/libodb.a \
+ 	../../libopt++/libopt++.a \
+-	../../libutil++/libutil++.a \
+-	../../libutil/libutil.a
++	../../libutil++/liboputil++.a \
++	../../libutil/liboputil.a
+diff -up oprofile-0.9.9/libutil/Makefile.am.libs oprofile-0.9.9/libutil/Makefile.am
+--- oprofile-0.9.9/libutil/Makefile.am.libs	2013-07-29 11:55:06.000000000 -0400
++++ oprofile-0.9.9/libutil/Makefile.am	2014-05-12 12:09:56.663301129 -0400
+@@ -3,8 +3,8 @@ SUBDIRS = . tests
+ AM_CPPFLAGS=-I ${top_srcdir}/libop @OP_CPPFLAGS@
+ AM_CFLAGS = @OP_CFLAGS@
+ 
+-noinst_LIBRARIES = libutil.a
+-libutil_a_SOURCES = \
++noinst_LIBRARIES = liboputil.a
++liboputil_a_SOURCES = \
+ 	op_deviceio.c \
+ 	op_lockfile.c \
+ 	op_file.c \
+diff -up oprofile-0.9.9/libutil++/Makefile.am.libs oprofile-0.9.9/libutil++/Makefile.am
+--- oprofile-0.9.9/libutil++/Makefile.am.libs	2013-07-29 11:55:06.000000000 -0400
++++ oprofile-0.9.9/libutil++/Makefile.am	2014-05-12 12:09:56.664301116 -0400
+@@ -8,8 +8,8 @@ AM_CPPFLAGS= \
+ 
+ AM_CXXFLAGS = @OP_CXXFLAGS@
+ 
+-noinst_LIBRARIES = libutil++.a
+-libutil___a_SOURCES = \
++noinst_LIBRARIES = liboputil++.a
++liboputil___a_SOURCES = \
+ 	op_bfd.cpp \
+ 	op_bfd.h \
+ 	bfd_support.cpp \
+diff -up oprofile-0.9.9/opjitconv/Makefile.am.libs oprofile-0.9.9/opjitconv/Makefile.am
+--- oprofile-0.9.9/opjitconv/Makefile.am.libs	2013-07-29 11:55:07.000000000 -0400
++++ oprofile-0.9.9/opjitconv/Makefile.am	2014-05-12 12:09:56.664301116 -0400
+@@ -11,7 +11,7 @@ bin_PROGRAMS = opjitconv
+ LIBS = @BFD_LIBS@
+ 
+ needed_libs =  \
+-	../libutil/libutil.a
++	../libutil/liboputil.a
+ 
+ opjitconv_LDADD = $(needed_libs)
+ 
+diff -up oprofile-0.9.9/pe_counting/Makefile.am.libs oprofile-0.9.9/pe_counting/Makefile.am
+--- oprofile-0.9.9/pe_counting/Makefile.am.libs	2014-05-12 14:35:06.444473173 -0400
++++ oprofile-0.9.9/pe_counting/Makefile.am	2014-05-12 14:33:32.683651948 -0400
+@@ -22,7 +22,7 @@ bin_PROGRAMS = ocount
+ ocount_LDADD = -lrt ../libpe_utils/libpe_utils.a \
+ 	../libpe_utils/libpe_utils.a \
+ 	../libop/libop.a \
+-	../libutil/libutil.a \
+-	../libutil++/libutil++.a
++	../libutil/liboputil.a \
++	../libutil++/liboputil++.a
+ 
+ endif
+diff -up oprofile-0.9.9/pe_profiling/Makefile.am.libs oprofile-0.9.9/pe_profiling/Makefile.am
+--- oprofile-0.9.9/pe_profiling/Makefile.am.libs	2014-05-12 13:31:03.253863375 -0400
++++ oprofile-0.9.9/pe_profiling/Makefile.am	2014-05-12 14:33:09.772939994 -0400
+@@ -16,10 +16,10 @@ AM_LDFLAGS = @OP_LDFLAGS@
+ 
+ bin_PROGRAMS = operf
+ operf_LDADD =	../libperf_events/libperf_events.a \
+-	../libutil++/libutil++.a \
++	../libutil++/liboputil++.a \
+ 	../libdb/libodb.a \
+ 	../libop/libop.a \
+-	../libutil/libutil.a \
+-	../libabi/libabi.a
++	../libutil/liboputil.a \
++	../libabi/libopabi.a
+ 
+ endif
+diff -up oprofile-0.9.9/pp/Makefile.am.libs oprofile-0.9.9/pp/Makefile.am
+--- oprofile-0.9.9/pp/Makefile.am.libs	2013-07-29 11:55:06.000000000 -0400
++++ oprofile-0.9.9/pp/Makefile.am	2014-05-12 12:09:56.665301103 -0400
+@@ -21,9 +21,9 @@ common_libs =  \
+ 	../libpp/libpp.a \
+ 	../libopt++/libopt++.a \
+ 	../libregex/libop_regex.a \
+-	../libutil++/libutil++.a \
++	../libutil++/liboputil++.a \
+ 	../libop/libop.a \
+-	../libutil/libutil.a \
++	../libutil/liboputil.a \
+ 	../libdb/libodb.a
+ 
+ opreport_SOURCES = opreport.cpp \
+diff -up oprofile-0.9.9/utils/Makefile.am.libs oprofile-0.9.9/utils/Makefile.am
+--- oprofile-0.9.9/utils/Makefile.am.libs	2013-07-29 11:55:08.000000000 -0400
++++ oprofile-0.9.9/utils/Makefile.am	2014-05-12 12:09:56.665301103 -0400
+@@ -14,4 +14,4 @@ op_check_perfevents_SOURCES = op_perf_ev
+ op_check_perfevents_CPPFLAGS = ${AM_CFLAGS} @PERF_EVENT_FLAGS@
+ 
+ ophelp_SOURCES = ophelp.c
+-ophelp_LDADD = ../libop/libop.a ../libutil/libutil.a
++ophelp_LDADD = ../libop/libop.a ../libutil/liboputil.a
