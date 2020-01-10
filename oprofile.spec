@@ -1,7 +1,7 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 11%{?dist}
+Release: 13%{?dist}
 License: GPLv2
 Group: Development/System
 #
@@ -27,6 +27,9 @@ Patch800: oprofile-defaultmask.patch
 Patch801: oprofile-extramask.patch
 Patch802: oprofile-maskarray.patch
 Patch803: oprofile-env.patch
+Patch900: oprofile-airmont.patch
+Patch901: oprofile-skylake.patch
+Patch910: oprofile-coverity.patch
 
 URL: http://oprofile.sf.net
 
@@ -48,7 +51,8 @@ BuildRequires: popt-devel
 %ifarch ppc64
 BuildRequires: papi-devel >= 5.1.1
 %if 0%{?rhel} == 6
-%global rhel6_operf --with-extra-include=%{_libdir}/papi-5.1.1/usr/include/perfmon --with-extra-libs=%{_libdir}/papi-5.1.1/usr/lib
+%global rhel6_operf_include -I%{_libdir}/papi-5.1.1/usr/include
+%global rhel6_operf_ld -L%{_libdir}/papi-5.1.1/usr/lib
 %endif
 %endif
 
@@ -113,15 +117,18 @@ agent library.
 %patch801 -p1
 %patch802 -p1
 %patch803 -p1
+%patch900 -p1
+%patch901 -p1
+%patch910 -p1
 
 ./autogen.sh
 
 %build
 QTDIR=%{_libdir}/qt-3.3;     export QTDIR
 
-#The CXXFLAGS below is temporary to work around
-# bugzilla #113909
-CXXFLAGS=-g;     export CXXFLAGS
+CXXFLAGS="%{?rhel6_operf_include} $RPM_OPT_FLAGS";   export CXXFLAGS
+CFLAGS="%{?rhel6_operf_include} $RPM_OPT_FLAGS";   export CFLAGS
+LDFLAGS="%{?rhel6_operf_ld}";     export LDFLAGS
 
 ./configure \
 --with-kernel-support \
@@ -143,9 +150,9 @@ CXXFLAGS=-g;     export CXXFLAGS
 --with-separate-debug-dir=/usr/lib/debug \
 --enable-abi \
 --with-qt-dir=$QTDIR \
---with-java=`pwd`/java-1.6.0-openjdk-1.6.0.0 %{?rhel6_operf}
+--with-java=`pwd`/java-1.6.0-openjdk-1.6.0.0
 
-make CFLAGS="$RPM_OPT_FLAGS"
+make %{?_smp_mflags}
 
 #tweak the manual pages
 find -path "*/doc/*.1" -exec \
@@ -245,6 +252,14 @@ exit 0
 /etc/ld.so.conf.d/*
 
 %changelog
+* Thu Feb 4 2016 William Cohen <wcohen@redhat.com> - 0.9.9-13
+- Build with correct libpfm.
+
+* Fri Dec 18 2015 William Cohen <wcohen@redhat.com> - 0.9.9-12
+- Add support for Intel Xeon D. rhbz1231399
+- Add support for Intel Skylake Mobile/Desktop processors. rhbz1254764
+- Fix coverity warnings. rhbz1206242
+
 * Thu Mar 26 2015 William Cohen <wcohen@redhat.com> - 0.9.9-11
 - Avoid setting POSIXLY_CORRECT for the children tasks of operf and ocount.
 
