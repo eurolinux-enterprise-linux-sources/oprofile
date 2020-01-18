@@ -1,7 +1,7 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 22%{?dist}
+Release: 25%{?dist}
 License: GPLv2+ and LGPLv2+
 Group: Development/System
 #
@@ -40,6 +40,8 @@ Patch1006: oprofile-captest.patch
 Patch1007: oprofile-order.patch
 Patch1010: oprofile-rhbz1385007.patch
 Patch1011: oprofile-rhbz1426426.patch
+Patch2000: oprofile-power9.patch
+Patch2001: oprofile-knl.patch
 
 URL: http://oprofile.sf.net
 
@@ -132,6 +134,8 @@ agent library.
 %patch1007 -p1 -b .order
 %patch1010 -p1 -b .rhbz1385007
 %patch1011 -p1 -b .rhbz1426426
+%patch2000 -p1 -b .power9
+%patch2001 -p1 -b .knl
 
 ./autogen.sh
 
@@ -218,6 +222,15 @@ exit 0
 %{_sysconfdir}/ld.so.conf.d/*
 
 %changelog
+* Mon Sep 25 2017 William Cohen <wcohen@redhat.com> - 0.9.9-25
+- Add Intel Xeon Phi support. rhbz1465354
+
+* Thu Aug 31 2017 William Cohen <wcohen@redhat.com> - 0.9.9-24
+- Update power9 events.
+
+* Thu Jun 22 2017 William Cohen <wcohen@redhat.com> - 0.9.9-23
+- Add power9 support.
+
 * Tue Mar 21 2017 William Cohen <wcohen@redhat.com> - 0.9.9-22
 - Update ppc64/ppc64le support. rhbz1385007
 - Add recognition check for POWER8NV and POWER8NVL. rhbz1426426
