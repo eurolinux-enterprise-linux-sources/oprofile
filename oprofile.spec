@@ -1,7 +1,7 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 25%{?dist}.1
+Release: 21%{?dist}
 License: GPLv2+ and LGPLv2+
 Group: Development/System
 #
@@ -38,12 +38,6 @@ Patch1004: oprofile-bz1335145.patch
 Patch1005: oprofile-bz1264443.patch
 Patch1006: oprofile-captest.patch
 Patch1007: oprofile-order.patch
-Patch1010: oprofile-rhbz1385007.patch
-Patch1011: oprofile-rhbz1426426.patch
-Patch2000: oprofile-power9.patch
-Patch2001: oprofile-knl.patch
-Patch2002: oprofile-power9_recog.patch
-Patch2003: oprofile-trans_init.patch
 
 URL: http://oprofile.sf.net
 
@@ -134,12 +128,6 @@ agent library.
 %patch1005 -p1 -b .archive
 %patch1006 -p1 -b .captest
 %patch1007 -p1 -b .order
-%patch1010 -p1 -b .rhbz1385007
-%patch1011 -p1 -b .rhbz1426426
-%patch2000 -p1 -b .power9
-%patch2001 -p1 -b .knl
-%patch2002 -p1 -b .recog
-%patch2003 -p1 -b .init
 
 ./autogen.sh
 
@@ -226,22 +214,6 @@ exit 0
 %{_sysconfdir}/ld.so.conf.d/*
 
 %changelog
-* Tue Jun 19 2018 William Cohen <wcohen@redhat.com> - 0.9.9-25el7.1
-- rhbz1593131
-
-* Mon Sep 25 2017 William Cohen <wcohen@redhat.com> - 0.9.9-25
-- Add Intel Xeon Phi support. rhbz1465354
-
-* Thu Aug 31 2017 William Cohen <wcohen@redhat.com> - 0.9.9-24
-- Update power9 events.
-
-* Thu Jun 22 2017 William Cohen <wcohen@redhat.com> - 0.9.9-23
-- Add power9 support.
-
-* Tue Mar 21 2017 William Cohen <wcohen@redhat.com> - 0.9.9-22
-- Update ppc64/ppc64le support. rhbz1385007
-- Add recognition check for POWER8NV and POWER8NVL. rhbz1426426
-
 * Wed Oct 19 2016 William Cohen <wcohen@redhat.com> - 0.9.9-21
 - Fix Intel Goldmont default event
 
