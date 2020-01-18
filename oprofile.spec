@@ -1,7 +1,7 @@
 Summary: System wide profiler
 Name: oprofile
 Version: 0.9.9
-Release: 21%{?dist}
+Release: 22%{?dist}
 License: GPLv2+ and LGPLv2+
 Group: Development/System
 #
@@ -38,6 +38,8 @@ Patch1004: oprofile-bz1335145.patch
 Patch1005: oprofile-bz1264443.patch
 Patch1006: oprofile-captest.patch
 Patch1007: oprofile-order.patch
+Patch1010: oprofile-rhbz1385007.patch
+Patch1011: oprofile-rhbz1426426.patch
 
 URL: http://oprofile.sf.net
 
@@ -128,6 +130,8 @@ agent library.
 %patch1005 -p1 -b .archive
 %patch1006 -p1 -b .captest
 %patch1007 -p1 -b .order
+%patch1010 -p1 -b .rhbz1385007
+%patch1011 -p1 -b .rhbz1426426
 
 ./autogen.sh
 
@@ -214,6 +218,10 @@ exit 0
 %{_sysconfdir}/ld.so.conf.d/*
 
 %changelog
+* Tue Mar 21 2017 William Cohen <wcohen@redhat.com> - 0.9.9-22
+- Update ppc64/ppc64le support. rhbz1385007
+- Add recognition check for POWER8NV and POWER8NVL. rhbz1426426
+
 * Wed Oct 19 2016 William Cohen <wcohen@redhat.com> - 0.9.9-21
 - Fix Intel Goldmont default event
 
